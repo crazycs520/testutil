@@ -6,6 +6,7 @@ import (
 	"github.com/crazycs520/testutil/config"
 	"os"
 	"strings"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql" // mysql driver
 )
@@ -76,19 +77,19 @@ func QueryRows(Engine *sql.DB, SQL string, fn func(row, cols []string) error) (e
 	return nil
 }
 
-func QueryAllRows(Engine *sql.DB, SQL string) ([][]string, error) {
+func QueryAllRows(Engine *sql.DB, SQL string) ([]string, [][]string, error) {
 	rows, err := Engine.Query(SQL)
 	if err == nil {
 		defer rows.Close()
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	cols, err1 := rows.Columns()
 	if err1 != nil {
-		return nil, err1
+		return nil, nil, err1
 	}
 	// Read all rows.
 	var actualRows [][]string
@@ -103,7 +104,7 @@ func QueryAllRows(Engine *sql.DB, SQL string) ([][]string, error) {
 
 		err1 = rows.Scan(dest...)
 		if err1 != nil {
-			return nil, err1
+			return nil, nil, err1
 		}
 
 		for i, raw := range rawResult {
@@ -118,18 +119,26 @@ func QueryAllRows(Engine *sql.DB, SQL string) ([][]string, error) {
 		actualRows = append(actualRows, result)
 	}
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return actualRows, nil
+	return cols, actualRows, nil
 }
 
 func QueryAndPrint(db *sql.DB, sql string) error {
-	rows, err := QueryAllRows(db, sql)
+	cols, rows, err := QueryAllRows(db, sql)
 	if err != nil {
 		return err
 	}
+	fmt.Println(strings.Join(cols, "\t\t"))
 	for _, row := range rows {
 		fmt.Println(strings.Join(row, " "))
 	}
+	fmt.Println()
 	return nil
+}
+
+const TimeFSPFormat = "2006-01-02 15:04:05.000000"
+
+func FormatTimeForQuery(t time.Time) string {
+	return t.Format(TimeFSPFormat)
 }
