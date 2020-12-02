@@ -49,9 +49,8 @@ func (b *BenchSQL) RunE(cmd *cobra.Command, args []string) error {
 		fmt.Printf("-----------[ help ]-----------\n")
 		return cmd.Help()
 	}
-	fmt.Printf("sql: %v\nconcurrency: %v\n", b.query, b.Concurrency)
-	b.GetSQLCli()
-	for i := 0; i < b.Concurrency; i++ {
+	fmt.Printf("sql: %v\nconcurrency: %v\n", b.query, b.cfg.Concurrency)
+	for i := 0; i < b.cfg.Concurrency; i++ {
 		go b.benchSql()
 	}
 	start := time.Now()

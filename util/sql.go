@@ -3,19 +3,22 @@ package util
 import (
 	"database/sql"
 	"fmt"
+	"github.com/crazycs520/testutil/config"
 	"os"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql" // mysql driver
 )
 
-func GetSQLCli(user, passwd, host, port, dbName string) *sql.DB {
-	dbDSN := fmt.Sprintf("%v:%s@tcp(%s:%v)/%s", user, passwd, host, port, dbName)
+func GetSQLCli(cfg *config.Config) *sql.DB {
+	dbDSN := fmt.Sprintf("%s:%s@tcp(%s:%d)/?charset=utf8mb4", cfg.User, cfg.Password, cfg.Host, cfg.Port)
 	db, err := sql.Open("mysql", dbDSN)
 	if err != nil {
-		fmt.Println("can not connect to database.")
+		fmt.Println("can not connect to database. err: " + err.Error())
 		os.Exit(1)
 	}
 	db.SetMaxOpenConns(1)
+	db.Exec("use " + cfg.DBName)
 	return db
 }
 
@@ -118,4 +121,15 @@ func QueryAllRows(Engine *sql.DB, SQL string) ([][]string, error) {
 		return nil, err
 	}
 	return actualRows, nil
+}
+
+func QueryAndPrint(db *sql.DB, sql string) error {
+	rows, err := QueryAllRows(db, sql)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		fmt.Println(strings.Join(row, " "))
+	}
+	return nil
 }
