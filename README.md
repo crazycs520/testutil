@@ -50,6 +50,18 @@ SQL 中的 @a 是随机值，取值范围是 [0, probability)
 定期打印以上查询打印慢日志信息以及冲突的错误数量。
 
 
+## write conflict in pessimistic transaction
+
+### command: 
+
+```shell
+begin;
+testutil case write-conflict-pessimistic --concurrency 100 --interval 5 --probability 100;
+commit;
+```
+
+和 write conflict 类似，区别是在悲观事务中执行以上 SQL。
+
 ## read-write conflict
 
 ### command: 
