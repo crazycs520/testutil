@@ -148,7 +148,24 @@ func QueryAndPrint(db *sql.DB, sql string) error {
 	for i, row := range rows {
 		fmt.Printf("***************************[ %v. row ]***************************\n", i)
 		for j, c := range row {
-			fmt.Printf("%v: %v\n", cols[j], c)
+			for {
+				s := strings.Replace(c, "\t", "  ", -1)
+				s = strings.Replace(s, "    ", "  ", -1)
+				if s == c {
+					break
+				}
+				c = s
+			}
+			if strings.HasPrefix(c, "'") && strings.HasSuffix(c, "'") && len(c) >= 2 {
+				l := len(c)
+				c = c[1 : l-1]
+			}
+			fmt.Printf("%v: ", cols[j])
+			if len(c) > 200 {
+				fmt.Printf("\n%v\n", c)
+			} else {
+				fmt.Printf("%v\n", c)
+			}
 		}
 	}
 	fmt.Println()

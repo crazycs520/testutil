@@ -20,6 +20,8 @@ func (b *CaseTest) Cmd() *cobra.Command {
 
 	writeConflict := test_case.NewWriteConflict(b.cfg)
 	cmd.AddCommand(writeConflict.Cmd())
+	readWriteConflict := test_case.NewReadWriteConflict(b.cfg)
+	cmd.AddCommand(readWriteConflict.Cmd())
 	return cmd
 }
 

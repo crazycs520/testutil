@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-type WriteConflict struct {
+type ReadWriteConflict struct {
 	cfg *config.Config
 
 	probability int
@@ -19,29 +19,35 @@ type WriteConflict struct {
 	conflictErr int64
 }
 
-func NewWriteConflict(cfg *config.Config) *WriteConflict {
-	return &WriteConflict{
+func NewReadWriteConflict(cfg *config.Config) *ReadWriteConflict {
+	return &ReadWriteConflict{
 		cfg: cfg,
 	}
 }
 
-func (c *WriteConflict) Run() error {
+func (c *ReadWriteConflict) Run() error {
 	db := util.GetSQLCli(c.cfg)
 	defer func() {
 		db.Close()
 	}()
-	c.cfg.DBName = "write_conflict"
+	c.cfg.DBName = "read_write_conflict"
 	prepareSQLs := []string{
 		"drop table if exists t",
-		"create table t (id int, name varchar(10), count bigint, primary key (id))",
+		"create table t (id int, name varchar(10), count bigint, unique index (id))",
 	}
 	err := prepare(db, c.cfg.DBName, prepareSQLs)
 	if err != nil {
 		return err
 	}
-	for i := 0; i < c.cfg.Concurrency; i++ {
+	for i := 0; i < c.cfg.Concurrency; i += 2 {
 		go func() {
 			err := c.update()
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+		}()
+		go func() {
+			err := c.read()
 			if err != nil {
 				fmt.Println(err.Error())
 			}
@@ -54,7 +60,7 @@ func (c *WriteConflict) Run() error {
 	return err
 }
 
-func (c *WriteConflict) update() error {
+func (c *ReadWriteConflict) update() error {
 	db := util.GetSQLCli(c.cfg)
 	defer func() {
 		db.Close()
@@ -73,7 +79,22 @@ func (c *WriteConflict) update() error {
 	}
 }
 
-func (c *WriteConflict) print() error {
+func (c *ReadWriteConflict) read() error {
+	db := util.GetSQLCli(c.cfg)
+	defer func() {
+		db.Close()
+	}()
+	for {
+		id := rand.Intn(c.probability)
+		sql := fmt.Sprintf("select * from t where id = %v", id)
+		_, err := db.Exec(sql)
+		if err != nil {
+			return err
+		}
+	}
+}
+
+func (c *ReadWriteConflict) print() error {
 	start := time.Now()
 	db := util.GetSQLCli(c.cfg)
 	defer func() {
@@ -81,13 +102,13 @@ func (c *WriteConflict) print() error {
 	}()
 	for {
 		time.Sleep(time.Second * time.Duration(c.interval))
-		query := fmt.Sprintf("select avg(query_time),count(*) from information_schema.cluster_slow_query where db='write_conflict' and query like 'insert into t%% on duplicate key update count%%' and time > '%s' and time < now()", util.FormatTimeForQuery(start))
+		query := fmt.Sprintf("select avg(query_time),count(*) from information_schema.cluster_slow_query where db='%s' and query like 'select * from t where id%%' and time > '%s' and time < now()", c.cfg.DBName, util.FormatTimeForQuery(start))
 		err := util.QueryAndPrint(db, query)
 		if err != nil {
 			return err
 		}
 		fmt.Println("------------------------")
-		query = fmt.Sprintf("select Time, Query_time, Parse_time, Compile_time, Rewrite_time, Prewrite_time, Resolve_lock_time, Commit_backoff_time, Backoff_types, Get_commit_ts_time, Commit_time, Txn_retry, Plan from information_schema.cluster_slow_query where db='write_conflict' and query like 'insert into t%% on duplicate key update count%%' and succ = true and time > '%s' and time < now() order by time desc limit 1", util.FormatTimeForQuery(start))
+		query = fmt.Sprintf("select Time, Query_time, Parse_time, Compile_time, Rewrite_time, Plan from information_schema.cluster_slow_query where db='%s' and query like 'select * from t where id%%' and succ = true and time > '%s' and time < now() order by time desc limit 1", c.cfg.DBName, util.FormatTimeForQuery(start))
 		err = util.QueryAndPrint(db, query)
 		if err != nil {
 			return err
@@ -98,11 +119,11 @@ func (c *WriteConflict) print() error {
 	}
 }
 
-func (c *WriteConflict) Cmd() *cobra.Command {
+func (c *ReadWriteConflict) Cmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "write-conflict",
-		Short:        "test write conflict case",
-		Long:         `test for write conflict case`,
+		Use:          "read-write-conflict",
+		Short:        "test read-write conflict case",
+		Long:         `test for read-write conflict case`,
 		RunE:         c.RunE,
 		SilenceUsage: true,
 	}
@@ -111,7 +132,7 @@ func (c *WriteConflict) Cmd() *cobra.Command {
 	return cmd
 }
 
-func (c *WriteConflict) RunE(cmd *cobra.Command, args []string) error {
+func (c *ReadWriteConflict) RunE(cmd *cobra.Command, args []string) error {
 	fmt.Printf("probability: %v\nconcurrency: %v\n", c.probability, c.cfg.Concurrency)
 	return c.Run()
 }
