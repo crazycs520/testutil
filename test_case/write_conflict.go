@@ -86,8 +86,9 @@ func (c *WriteConflict) print() error {
 		if err != nil {
 			return err
 		}
-		fmt.Println()
-		fmt.Printf("conflict error count: %v \n\n", atomic.LoadInt64(&c.conflictErr))
+		fmt.Println("------------------------")
+		fmt.Printf("conflict error count: %v \n", atomic.LoadInt64(&c.conflictErr))
+		fmt.Printf("---------------------------[ END ]-------------------------\n\n")
 	}
 }
 

@@ -20,7 +20,7 @@ testutil case write-conflict --concurrency 100 --interval 5 --probability 100
 insert into t values (@a,'aaa', 1) on duplicate key update count=count+1;  
 ```
 
-SQL 中的 @a 是随机值，取值范围是 [0, probability)。
+SQL 中的 @a 是随机值，取值范围是 [0, probability), @a 所在的 column 上有 unique index。
 
 定期打印以上查询打印慢日志信息以及冲突的错误数量。
 
