@@ -2,6 +2,7 @@ package test_case
 
 import (
 	"fmt"
+	"github.com/crazycs520/testutil/cmd"
 	"github.com/crazycs520/testutil/config"
 	"github.com/crazycs520/testutil/util"
 	"github.com/spf13/cobra"
@@ -19,7 +20,7 @@ type WriteConflict struct {
 	conflictErr int64
 }
 
-func NewWriteConflict(cfg *config.Config) *WriteConflict {
+func NewWriteConflict(cfg *config.Config) cmd.CMDGenerater {
 	return &WriteConflict{
 		cfg: cfg,
 	}
@@ -81,13 +82,13 @@ func (c *WriteConflict) print() error {
 	}()
 	for {
 		time.Sleep(time.Second * time.Duration(c.interval))
-		query := fmt.Sprintf("select avg(query_time),count(*) from information_schema.cluster_slow_query where db='write_conflict' and query like 'insert into t%% on duplicate key update count%%' and time > '%s' and time < now()", util.FormatTimeForQuery(start))
+		query := fmt.Sprintf("select avg(query_time),count(*) from information_schema.cluster_slow_query where db='%s' and query like 'insert into t%% on duplicate key update count%%' and time > '%s' and time < now()", c.cfg.DBName, util.FormatTimeForQuery(start))
 		err := util.QueryAndPrint(db, query)
 		if err != nil {
 			return err
 		}
 		fmt.Println("------------------------")
-		query = fmt.Sprintf("select Time, Query_time, Parse_time, Compile_time, Rewrite_time, Prewrite_time, Resolve_lock_time, Commit_backoff_time, Backoff_types, Get_commit_ts_time, Commit_time, Txn_retry, Plan from information_schema.cluster_slow_query where db='write_conflict' and query like 'insert into t%% on duplicate key update count%%' and succ = true and time > '%s' and time < now() order by time desc limit 1", util.FormatTimeForQuery(start))
+		query = fmt.Sprintf("select Time, Query_time, Parse_time, Compile_time, Rewrite_time, Prewrite_time, Resolve_lock_time, Commit_backoff_time, Backoff_types, Get_commit_ts_time, Commit_time, Txn_retry, Plan from information_schema.cluster_slow_query where db='%s' and query like 'insert into t%% on duplicate key update count%%' and succ = true and time > '%s' and time < now() order by time desc limit 1", c.cfg.DBName, util.FormatTimeForQuery(start))
 		err = util.QueryAndPrint(db, query)
 		if err != nil {
 			return err

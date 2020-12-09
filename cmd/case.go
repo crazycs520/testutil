@@ -1,13 +1,19 @@
 package cmd
 
 import (
-	"github.com/crazycs520/testutil/test_case"
+	"github.com/crazycs520/testutil/config"
 	"github.com/spf13/cobra"
 )
 
 type CaseTest struct {
 	*App
 }
+
+type CMDGenerater interface {
+	Cmd() *cobra.Command
+}
+
+var caseCmds = []func(config *config.Config) CMDGenerater{}
 
 func (b *CaseTest) Cmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -18,13 +24,17 @@ func (b *CaseTest) Cmd() *cobra.Command {
 		SilenceUsage: true,
 	}
 
-	writeConflict := test_case.NewWriteConflict(b.cfg)
-	cmd.AddCommand(writeConflict.Cmd())
-	readWriteConflict := test_case.NewReadWriteConflict(b.cfg)
-	cmd.AddCommand(readWriteConflict.Cmd())
+	for _, gen := range caseCmds {
+		child := gen(b.cfg)
+		cmd.AddCommand(child.Cmd())
+	}
 	return cmd
 }
 
 func (b *CaseTest) RunE(cmd *cobra.Command, args []string) error {
 	return cmd.Help()
+}
+
+func RegisterCaseCmd(c func(config *config.Config) CMDGenerater) {
+	caseCmds = append(caseCmds, c)
 }

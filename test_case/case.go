@@ -2,7 +2,14 @@ package test_case
 
 import (
 	"database/sql"
+	"github.com/crazycs520/testutil/cmd"
 )
+
+func init() {
+	cmd.RegisterCaseCmd(NewWriteConflict)
+	cmd.RegisterCaseCmd(NewPessimisticWriteConflict)
+	cmd.RegisterCaseCmd(NewReadWriteConflict)
+}
 
 func prepare(db *sql.DB, dbName string, sqls []string) error {
 	ss := []string{
