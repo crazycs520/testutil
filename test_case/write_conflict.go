@@ -6,24 +6,27 @@ import (
 	"github.com/crazycs520/testutil/util"
 	"github.com/spf13/cobra"
 	"math/rand"
+	"strings"
+	"sync/atomic"
 	"time"
 )
 
 type WriteConflict struct {
-	cfg config.Config
+	cfg *config.Config
 
 	probability int
 	interval    int64
+	conflictErr int64
 }
 
-func NewWriteConflict(cfg config.Config) *WriteConflict {
+func NewWriteConflict(cfg *config.Config) *WriteConflict {
 	return &WriteConflict{
 		cfg: cfg,
 	}
 }
 
 func (c *WriteConflict) Run() error {
-	db := util.GetSQLCli(&c.cfg)
+	db := util.GetSQLCli(c.cfg)
 	defer func() {
 		db.Close()
 	}()
@@ -52,7 +55,7 @@ func (c *WriteConflict) Run() error {
 }
 
 func (c *WriteConflict) update() error {
-	db := util.GetSQLCli(&c.cfg)
+	db := util.GetSQLCli(c.cfg)
 	defer func() {
 		db.Close()
 	}()
@@ -61,6 +64,10 @@ func (c *WriteConflict) update() error {
 		sql := fmt.Sprintf("insert into t values (%v,'aaa', %v) on duplicate key update count=count+1;", id, 1)
 		_, err := db.Exec(sql)
 		if err != nil {
+			if strings.Contains(err.Error(), "Write conflict") {
+				atomic.AddInt64(&c.conflictErr, 1)
+				continue
+			}
 			return err
 		}
 	}
@@ -68,7 +75,7 @@ func (c *WriteConflict) update() error {
 
 func (c *WriteConflict) print() error {
 	start := time.Now()
-	db := util.GetSQLCli(&c.cfg)
+	db := util.GetSQLCli(c.cfg)
 	defer func() {
 		db.Close()
 	}()
@@ -79,6 +86,8 @@ func (c *WriteConflict) print() error {
 		if err != nil {
 			return err
 		}
+		fmt.Println()
+		fmt.Printf("conflict error count: %v \n\n", atomic.LoadInt64(&c.conflictErr))
 	}
 }
 

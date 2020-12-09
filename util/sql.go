@@ -129,9 +129,27 @@ func QueryAndPrint(db *sql.DB, sql string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(strings.Join(cols, "\t\t"))
+	length := 0
 	for _, row := range rows {
-		fmt.Println(strings.Join(row, " "))
+		for _, c := range row {
+			length += len(c)
+		}
+		break
+	}
+	if length < 250 {
+		// print short rows
+		fmt.Println(strings.Join(cols, "\t\t"))
+		for _, row := range rows {
+			fmt.Println(strings.Join(row, " "))
+		}
+		fmt.Println()
+		return nil
+	}
+	for i, row := range rows {
+		fmt.Printf("***************************[ %v. row ]***************************\n", i)
+		for j, c := range row {
+			fmt.Printf("%v: %v\n", cols[j], c)
+		}
 	}
 	fmt.Println()
 	return nil

@@ -1,5 +1,7 @@
 package config
 
+import "fmt"
+
 // DBConfig is database configuration.
 type DBConfig struct {
 	Host     string `toml:"host" json:"host"`
@@ -12,4 +14,9 @@ type DBConfig struct {
 type Config struct {
 	DBConfig
 	Concurrency int
+}
+
+func (c *Config) String() string {
+	return fmt.Sprintf("concurrency: %v, host: %v, port: %v, user: %v, password: %v, db-name: %v",
+		c.Concurrency, c.Host, c.Port, c.User, c.Password, c.DBName)
 }

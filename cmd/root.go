@@ -2,25 +2,27 @@ package cmd
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/crazycs520/testutil/config"
 	"github.com/crazycs520/testutil/util"
 	"github.com/spf13/cobra"
 )
 
 type App struct {
-	cfg config.Config
-	//Host        string
-	//Port        string
-	//User        string
-	//Password    string
-	//DBName      string
-	//Concurrency int
+	cfg *config.Config
+}
+
+func NewApp() *App {
+	return &App{
+		cfg: &config.Config{},
+	}
 }
 
 func (app *App) Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "testutil",
 		Short:        "testutil uses to do bench and case test",
+		RunE:         app.RunE,
 		SilenceUsage: true,
 	}
 
@@ -39,6 +41,11 @@ func (app *App) Cmd() *cobra.Command {
 	return cmd
 }
 
+func (app *App) RunE(cmd *cobra.Command, args []string) error {
+	fmt.Printf("%v\n", app.cfg.String())
+	return cmd.Help()
+}
+
 func (app *App) GetSQLCli() *sql.DB {
-	return util.GetSQLCli(&app.cfg)
+	return util.GetSQLCli(app.cfg)
 }

@@ -1,16 +1,14 @@
 package main
 
 import (
-	"log"
 	"github.com/crazycs520/testutil/cmd"
-
+	"log"
 )
 
 func main() {
-	app := &cmd.App{}
+	app := cmd.NewApp()
 	err := app.Cmd().Execute()
 	if err != nil {
 		log.Fatalln(err)
 	}
 }
-

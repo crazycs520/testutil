@@ -1,23 +1,12 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/crazycs520/testutil/config"
-	"github.com/crazycs520/testutil/util"
+	"log"
 	"os"
+	"time"
 )
-
-func GetSQLCli(cfg *config.DBConfig) *sql.DB {
-	dbDSN := fmt.Sprintf("%s:%s@tcp(%s:%d)/?charset=utf8mb4&tidb_snapshot=%s&tidb_slow_log_threshold=20", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Snapshot)
-	db, err := sql.Open("mysql", dbDSN)
-	if err != nil {
-		fmt.Println("can not connect to database.")
-		os.Exit(1)
-	}
-	db.SetMaxOpenConns(1)
-	return db
-}
 
 func main() {
 	cfg := &config.DBConfig{
@@ -26,8 +15,27 @@ func main() {
 		User:     "root",
 		Password: "",
 		DBName:   "test",
-		Snapshot: "421242806801006594",
 	}
-	db := GetSQLCli(cfg)
-	util.QueryAndPrint(db, "select * from test.t")
+	_ = cfg
+
+	file, err := os.OpenFile("/Users/cs/code/goread/src/github.com/pingcap/tidb/tidb-slow-3.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	assertErr(err)
+	stat, err := file.Stat()
+	assertErr(err)
+	fmt.Printf("%v \n", stat.ModTime())
+	var t time.Time
+	fmt.Printf("%v \n", t.Equal(zeroTime))
+
+	t = time.Now()
+	ns := t.UnixNano()
+	t1 := time.Unix(0, ns)
+	fmt.Println(t.String(), t1.String())
+}
+
+var zeroTime = time.Time{}
+
+func assertErr(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
 }
