@@ -95,8 +95,14 @@ func (c *PessimisticWriteConflict) print() error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("------------------------")
-		query = fmt.Sprintf("select Time, Query_time, Parse_time, Compile_time, Rewrite_time, Prewrite_time, Resolve_lock_time, Commit_backoff_time, Backoff_types, Get_commit_ts_time, Commit_time, Txn_retry, Plan from information_schema.cluster_slow_query where db='%s' and query like 'insert into t%% on duplicate key update count%%' and succ = true and time > '%s' and time < now() order by time desc limit 1", c.cfg.DBName, util.FormatTimeForQuery(start))
+		fmt.Println("----------- exec retry > 0 -------------")
+		query = fmt.Sprintf("select Time, Exec_retry_time, Exec_retry_count, Query_time, Parse_time, Compile_time, Rewrite_time, Plan from information_schema.cluster_slow_query where db='%s' and query like 'insert into t%% on duplicate key update count%%' and succ = true and time > '%s' and time < now() and Exec_retry_count > 0 order by time desc limit 1", c.cfg.DBName, util.FormatTimeForQuery(start))
+		err = util.QueryAndPrint(db, query)
+		if err != nil {
+			return err
+		}
+		fmt.Println("----------- exec retry = 0 -------------")
+		query = fmt.Sprintf("select Time, Exec_retry_time, Exec_retry_count, Query_time, Parse_time, Compile_time, Rewrite_time, Plan from information_schema.cluster_slow_query where db='%s' and query like 'insert into t%% on duplicate key update count%%' and succ = true and time > '%s' and time < now() and Exec_retry_count = 0 order by time desc limit 1", c.cfg.DBName, util.FormatTimeForQuery(start))
 		err = util.QueryAndPrint(db, query)
 		if err != nil {
 			return err

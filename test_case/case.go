@@ -9,6 +9,8 @@ func init() {
 	cmd.RegisterCaseCmd(NewWriteConflict)
 	cmd.RegisterCaseCmd(NewPessimisticWriteConflict)
 	cmd.RegisterCaseCmd(NewReadWriteConflict)
+	cmd.RegisterCaseCmd(NewBenchListPartitionTable)
+	cmd.RegisterCaseCmd(NewStressCop)
 }
 
 func prepare(db *sql.DB, dbName string, sqls []string) error {

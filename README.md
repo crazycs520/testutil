@@ -92,6 +92,31 @@ select * from t where id = @a;
 
 SQL 中的 @a 是随机值，取值范围是 [0, probability), @a 所在的 column 上有 unique index。
 
+## 压测 Coprocessor
 
+### command: 
 
+```shell
+testutil case stress-cop --concurrency 100 --interval 10 --rows 1000000
+```
 
+### introduction
+
+表 t 的定义如下：
+
+```sql
+CREATE TABLE `t_cop` (
+  `id` int(11) NOT NULL,
+  `name` varchar(10) DEFAULT NULL,
+  `count` bigint(20) DEFAULT NULL,
+  `age` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+);
+```
+
+1. 导入 `$rows` 行数据到表t.
+2. 多个连接并行执行以下 SQL 来压测 Coprocessor
+
+```sql
+select sum(id*count*age) from stress_test.t_cop;
+```
