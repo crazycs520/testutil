@@ -148,17 +148,46 @@ func QueryAndPrint(db *sql.DB, sql string) error {
 	for i, row := range rows {
 		fmt.Printf("***************************[ %v. row ]***************************\n", i)
 		for j, c := range row {
-			for {
-				s := strings.Replace(c, "\t", "  ", -1)
-				s = strings.Replace(s, "    ", "  ", -1)
-				if s == c {
-					break
-				}
-				c = s
+			c = prettyValue(c)
+			fmt.Printf("%v: ", cols[j])
+			if len(c) > 200 {
+				fmt.Printf("\n%v\n", c)
+			} else {
+				fmt.Printf("%v\n", c)
 			}
-			if strings.HasPrefix(c, "'") && strings.HasSuffix(c, "'") && len(c) >= 2 {
-				l := len(c)
-				c = c[1 : l-1]
+		}
+	}
+	fmt.Println()
+	return nil
+}
+
+func QueryAndPrintWithIgnoreZeroValue(db *sql.DB, sql string) error {
+	cols, rows, err := QueryAllRows(db, sql)
+	if err != nil {
+		return err
+	}
+	length := 0
+	for _, row := range rows {
+		for _, c := range row {
+			length += len(c)
+		}
+		break
+	}
+	if length < 250 {
+		// print short rows
+		fmt.Println(strings.Join(cols, "\t\t"))
+		for _, row := range rows {
+			fmt.Println(strings.Join(row, " "))
+		}
+		fmt.Println()
+		return nil
+	}
+	for i, row := range rows {
+		fmt.Printf("***************************[ %v. row ]***************************\n", i)
+		for j, c := range row {
+			c = prettyValue(c)
+			if c == "" || c == "0" {
+				continue
 			}
 			fmt.Printf("%v: ", cols[j])
 			if len(c) > 200 {
@@ -170,6 +199,41 @@ func QueryAndPrint(db *sql.DB, sql string) error {
 	}
 	fmt.Println()
 	return nil
+}
+
+func prettyValue(row string) string {
+	rows := strings.Split(row, "\n")
+	for i := range rows {
+		rows[i] = prettyValueRow(rows[i])
+	}
+	return strings.Join(rows, "\n")
+}
+
+func prettyValueRow(c string) string {
+	for {
+		s := strings.Replace(c, "\t", "  ", -1)
+		idx := strings.Index(s, "_")
+		if idx < 0 {
+			idx = strings.Index(s, "root")
+		}
+		if idx < 0 {
+			idx = strings.Index(s, "cop")
+		}
+		if idx > 0 {
+			sub := s[idx:]
+			sub = strings.Replace(sub, "    ", "  ", -1)
+			s = s[:idx] + sub
+		}
+		if s == c {
+			break
+		}
+		c = s
+	}
+	if strings.HasPrefix(c, "'") && strings.HasSuffix(c, "'") && len(c) >= 2 {
+		l := len(c)
+		c = c[1 : l-1]
+	}
+	return c
 }
 
 const TimeFSPFormat = "2006-01-02 15:04:05.000000"

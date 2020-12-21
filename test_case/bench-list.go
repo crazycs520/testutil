@@ -196,7 +196,9 @@ func (c *benchRandSelect) prepare() error {
 	defer func() {
 		db.Close()
 	}()
-	c.maxNum = c.rows
+	if c.rows == 0 {
+		c.maxNum = c.partitionValueNum * c.partitionNum
+	}
 	exist := c.checkTableExist(db)
 	if exist {
 		return nil

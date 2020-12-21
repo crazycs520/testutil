@@ -215,13 +215,13 @@ func (c *StressCop) print() error {
 	for {
 		time.Sleep(time.Second * time.Duration(c.interval))
 		query := fmt.Sprintf("select avg(query_time),count(*) from information_schema.cluster_slow_query where db='%s' and query like 'select sum(id%%' and time > '%s' and time < now()", c.cfg.DBName, util.FormatTimeForQuery(start))
-		err := util.QueryAndPrint(db, query)
+		err := util.QueryAndPrintWithIgnoreZeroValue(db, query)
 		if err != nil {
 			return err
 		}
 		fmt.Println("------------------------")
 		query = fmt.Sprintf("select * from information_schema.cluster_slow_query where db='%s' and query like 'select sum(id%%' and succ = true and time > '%s' and time < now() order by time desc limit 1", c.cfg.DBName, util.FormatTimeForQuery(start))
-		err = util.QueryAndPrint(db, query)
+		err = util.QueryAndPrintWithIgnoreZeroValue(db, query)
 		if err != nil {
 			return err
 		}
