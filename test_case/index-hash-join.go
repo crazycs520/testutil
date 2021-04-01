@@ -10,45 +10,49 @@ import (
 	"time"
 )
 
-type IndexLookUpWrongPlan struct {
+type IndexHashJoinPlan struct {
 	cfg       *config.Config
 	tableName string
 	tblInfo   *data.TableInfo
 
+	query       string
 	rows        int
 	interval    int64
 	insertCount int64
 }
 
-func NewIndexLookUpWrongPlan(cfg *config.Config) cmd.CMDGenerater {
-	return &IndexLookUpWrongPlan{
+func NewIndexHashJoinPlan(cfg *config.Config) cmd.CMDGenerater {
+	return &IndexHashJoinPlan{
 		cfg: cfg,
 	}
 }
 
-func (c *IndexLookUpWrongPlan) Cmd() *cobra.Command {
+func (c *IndexHashJoinPlan) Cmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "index-lookup",
-		Short:        "stress test for index lookup in wrong plan.",
+		Use:          "index-hash-join",
+		Short:        "stress test for index hash join.",
 		RunE:         c.RunE,
 		SilenceUsage: true,
 	}
+	cmd.Flags().StringVarP(&c.query, "sql", "", "", "execute query")
 	cmd.Flags().IntVarP(&c.rows, "rows", "", 100000, "test table rows")
 	cmd.Flags().Int64VarP(&c.interval, "interval", "", 1, "print message interval seconds")
 	return cmd
 }
 
-func (c *IndexLookUpWrongPlan) RunE(cmd *cobra.Command, args []string) error {
+func (c *IndexHashJoinPlan) RunE(cmd *cobra.Command, args []string) error {
 	return c.Run()
 }
 
-func (c *IndexLookUpWrongPlan) prepare() error {
+func (c *IndexHashJoinPlan) prepare() error {
 	c.cfg.DBName = "stress_test"
-	c.tableName = "t_index_lookup"
+	c.tableName = "t"
 	tblInfo, err := data.NewTableInfo(c.cfg.DBName, c.tableName, []data.ColumnDef{
 		{
-			Name: "a",
-			Tp:   "bigint",
+			Name:     "a",
+			Tp:       "bigint",
+			MinValue: "0",
+			MaxValue: "10000",
 		},
 		{
 			Name: "b",
@@ -76,7 +80,7 @@ func (c *IndexLookUpWrongPlan) prepare() error {
 	return load.Prepare(tblInfo, c.rows, 2000)
 }
 
-func (c *IndexLookUpWrongPlan) Run() error {
+func (c *IndexHashJoinPlan) Run() error {
 	err := c.prepare()
 	if err != nil {
 		fmt.Println("prepare data meet error: ", err)
@@ -86,21 +90,30 @@ func (c *IndexLookUpWrongPlan) Run() error {
 	for i := 0; i < c.cfg.Concurrency; i++ {
 		go func() {
 			err := c.exec(func() string {
-				return fmt.Sprintf("select sum(a*b) from %v use index (idx0) where a < 1000000", c.tblInfo.DBTableName())
+				if c.query != "" {
+					return c.query
+				}
+				return fmt.Sprintf("select /*+ INL_HASH_JOIN(t2,t1) */ count(*) from %[1]v t1 join %[1]v t2 where t1.a=t2.b;", c.tblInfo.DBTableName())
 			})
 			if err != nil {
 				fmt.Println(err.Error())
 			}
 		}()
 	}
-	err = util.PrintSlowQueryInfo(fmt.Sprintf("select sum(a*b) from %v use index%%", c.tblInfo.DBTableName()), time.Second, c.cfg)
+	var likeCond string
+	if c.query != "" {
+		likeCond = c.query + "%%"
+	} else {
+		likeCond = fmt.Sprintf("select /*+ INL_HASH_JOIN(t2,t1) */ count(*) from %[1]v t1 join%%", c.tblInfo.DBTableName())
+	}
+	err = util.PrintSlowQueryInfo(likeCond, time.Second, c.cfg)
 	if err != nil {
 		fmt.Println(err.Error())
 	}
 	return err
 }
 
-func (c *IndexLookUpWrongPlan) exec(genSQL func() string) error {
+func (c *IndexHashJoinPlan) exec(genSQL func() string) error {
 	db := util.GetSQLCli(c.cfg)
 	defer func() {
 		db.Close()

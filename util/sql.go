@@ -211,7 +211,7 @@ func prettyValue(row string) string {
 
 func prettyValueRow(c string) string {
 	for {
-		s := strings.Replace(c, "\t", "  ", -1)
+		s := c
 		idx := strings.Index(s, "_")
 		if idx < 0 {
 			idx = strings.Index(s, "root")
@@ -221,6 +221,7 @@ func prettyValueRow(c string) string {
 		}
 		if idx > 0 {
 			sub := s[idx:]
+			sub = strings.Replace(sub, "\t", "  ", -1)
 			sub = strings.Replace(sub, "    ", "  ", -1)
 			s = s[:idx] + sub
 		}
@@ -240,4 +241,28 @@ const TimeFSPFormat = "2006-01-02 15:04:05.000000"
 
 func FormatTimeForQuery(t time.Time) string {
 	return t.Format(TimeFSPFormat)
+}
+
+func PrintSlowQueryInfo(queryLike string, interval time.Duration, cfg *config.Config) error {
+	start := time.Now()
+	db := GetSQLCli(cfg)
+	defer func() {
+		db.Close()
+	}()
+	for {
+		time.Sleep(interval)
+		fmt.Printf("\n---------------------------[ START ]-------------------------\n")
+		query := fmt.Sprintf("select avg(query_time),count(*) from information_schema.cluster_slow_query where db='%s' and query like '%v' and time > '%s' and time < now()", cfg.DBName, queryLike, FormatTimeForQuery(start))
+		err := QueryAndPrintWithIgnoreZeroValue(db, query)
+		if err != nil {
+			return err
+		}
+		fmt.Println("------------------------")
+		query = fmt.Sprintf("select * from information_schema.cluster_slow_query where db='%s' and query like '%v' and succ = true and time > '%s' and time < now() order by time desc limit 1", cfg.DBName, queryLike, FormatTimeForQuery(start))
+		err = QueryAndPrintWithIgnoreZeroValue(db, query)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("---------------------------[ END ]-------------------------\n\n")
+	}
 }

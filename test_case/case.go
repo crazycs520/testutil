@@ -12,6 +12,7 @@ func init() {
 	cmd.RegisterCaseCmd(NewBenchListPartitionTable)
 	cmd.RegisterCaseCmd(NewStressCop)
 	cmd.RegisterCaseCmd(NewIndexLookUpWrongPlan)
+	cmd.RegisterCaseCmd(NewIndexHashJoinPlan)
 }
 
 func prepare(db *sql.DB, dbName string, sqls []string) error {
