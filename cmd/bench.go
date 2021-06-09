@@ -17,13 +17,15 @@ type BenchSQL struct {
 	query  string
 	ignore bool
 
-	randMin int64
-	randMax int64
+	valMin     int64
+	valMax     int64
+	currentVal int64
 
 	totalQPS int64
 }
 
 const randValueStr = "#rand-val"
+const seqValueStr = "#seq-val"
 
 func (b *BenchSQL) Cmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -37,8 +39,8 @@ func (b *BenchSQL) Cmd() *cobra.Command {
 	//cmd.Flags().IntVar(&app.EstimateTableRows, "new-table-row", 0, "estimate need be split table rows")
 	cmd.Flags().StringVarP(&b.query, "sql", "", "", "bench sql statement")
 	cmd.Flags().BoolVarP(&b.ignore, "ignore", "", false, "should ignore error?")
-	cmd.Flags().Int64VarP(&b.randMin, "randmin", "", 0, randValueStr +" min val")
-	cmd.Flags().Int64VarP(&b.randMax, "randmax", "", 0, randValueStr + " max val")
+	cmd.Flags().Int64VarP(&b.valMin, "valmin", "", 0, randValueStr +"/"+seqValueStr +" min val")
+	cmd.Flags().Int64VarP(&b.valMax, "valmax", "", 0, randValueStr +"/"+seqValueStr + " max val")
 
 	return cmd
 }
@@ -58,7 +60,8 @@ func (b *BenchSQL) RunE(cmd *cobra.Command, args []string) error {
 		fmt.Printf("-----------[ help ]-----------\n")
 		return cmd.Help()
 	}
-	fmt.Printf("sql: %v\nconcurrency: %v\n", replaceSQL(b.query,b.randMin,b.randMax), b.cfg.Concurrency)
+	fmt.Printf("sql: %v\nconcurrency: %v\n", b.replaceSQL(b.query), b.cfg.Concurrency)
+	//b.currentVal = b.valMin
 	for i := 0; i < b.cfg.Concurrency; i++ {
 		go b.benchSql()
 	}
@@ -77,7 +80,7 @@ func (b *BenchSQL) benchSql() {
 		var err error
 		var rows *sql.Rows
 		for i := 0; i < batch; i++ {
-			sqlStr = replaceSQL(sqlStr,b.randMin,b.randMax)
+			sqlStr = b.replaceSQL(b.query)
 			if strings.HasPrefix(strings.ToLower(sqlStr), "select") {
 				rows, err = db.Query(sqlStr)
 			} else {
@@ -97,13 +100,19 @@ func (b *BenchSQL) benchSql() {
 	}
 }
 
-func replaceSQL(sql string,randMin,randMax int64) string {
-	if randMin == randMax {
+func(b *BenchSQL) replaceSQL(sql string) string {
+	if b.valMin == b.valMax {
 		return sql
 	}
-	if !strings.Contains(sql, randValueStr) {
-		return sql
+	if strings.Contains(sql, randValueStr) {
+		rand.Seed(time.Now().UnixNano())
+		v := rand.Intn(int(b.valMax-b.valMin+1)) + int(b.valMin)
+		return strings.Replace(sql,randValueStr,strconv.Itoa(v),-1)
 	}
-	v := rand.Intn(int(randMax-randMin+1)) + int(randMin)
-	return strings.Replace(sql,randValueStr,strconv.Itoa(v),-1)
+	if strings.Contains(sql, seqValueStr) {
+		v := atomic.AddInt64(&b.currentVal,1)
+		return strings.Replace(sql,seqValueStr,strconv.Itoa(int(v)),-1)
+	}
+
+	return sql
 }
